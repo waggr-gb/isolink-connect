@@ -1,0 +1,169 @@
+import "../libraries/isolink-connect/src/protocol.kscript" as protocol
+import "../libraries/isolink-connect/client.kscript" as sdk
+import KScript.Net
+import "scripted-connection.kscript"
+
+const hello = { id: 1, r: { protocol: 1, mode: 'host', me: { name: 'Joan' } } }
+
+fn read_status(session: any) {
+  expect(value: $session.me.name, equals: 'Joan')
+  expect(value: $session.token, equals: 'saved')
+  return @sdk.status($session)
+}
+
+fn retry_after_host_error(session: any) {
+  expect_error(type: Network, as: err) {
+    @sdk.get_record($session, 'space', 'old')
+  }
+  expect(value: $err['code'], equals: 'missing_record')
+  return @sdk.open_space($session, 'notes', 'Notes')
+}
+
+describe(name: "Connect v1") {
+  test(name: "hello, events and a correlated reply share one stream") {
+    peer = ScriptedConnection(replies: [
+      $hello,
+      { ev: 'records.changed', p: {} },
+      { id: 2, r: { running: true } }
+    ])
+    result = @protocol.with_connection(
+      $peer,
+      'example.kscript',
+      'Test App',
+      @read_status,
+      'saved'
+    )
+    expect(value: $result.running, equals: true)
+    expect(value: $peer.sent, equals: [
+      {
+        id: 1,
+        m: 'hello',
+        p: {
+          protocol: 1,
+          app: { id: 'example.kscript', name: 'Test App' },
+          token: 'saved'
+        }
+      },
+      { id: 2, m: 'status', p: {} }
+    ])
+  }
+
+  test(name: "a host error keeps the connection available for the next request") {
+    peer = ScriptedConnection(replies: [
+      $hello,
+      { id: 2, e: { code: 'missing_record', message: 'Record is gone.' } },
+      { id: 3, r: { id: 'notes-space' } }
+    ])
+    space = @protocol.with_connection(
+      $peer,
+      'example.kscript',
+      'Test App',
+      @retry_after_host_error
+    )
+    expect(value: $space.id, equals: 'notes-space')
+    expect(value: $peer.closed, equals: false)
+    expect(value: $peer.sent[0].p->has('token'), equals: false)
+    expect(value: $peer.sent[0].p->has('capabilities'), equals: false)
+    expect(
+      value: $peer.sent[2],
+      equals: { id: 3, m: 'spaces.open', p: { key: 'notes', name: 'Notes' } }
+    )
+  }
+
+  test(name: "the host can renew a reconnect token") {
+    peer = ScriptedConnection(replies: [{
+      id: 1,
+      r: { protocol: 1, mode: 'host', me: {}, token: 'renewed' }
+    }])
+    token = @protocol.with_connection(
+      $peer,
+      'example.kscript',
+      'Test App',
+      fn(s) => $s.token,
+      'saved'
+    )
+    expect(value: $token, equals: 'renewed')
+  }
+
+  test(name: "a refused handshake propagates the host code") {
+    peer = ScriptedConnection(replies: [{
+      id: 1,
+      e: { code: 'denied', message: 'Consent denied.' }
+    }])
+    expect_error(type: Network, as: err) {
+      @protocol.with_connection(
+        $peer,
+        'example.kscript',
+        'Test App',
+        fn(_s) => 'unused'
+      )
+    }
+    expect(value: $err['code'], equals: 'denied')
+    expect(value: $peer.sent->count(), equals: 1)
+  }
+
+  for bad in [
+    { protocol: '1', mode: 'host', me: {} },
+    { protocol: 1, mode: 'peer', me: {} },
+    { protocol: 1, mode: 'host', me: [] }
+  ] {
+    test(name: "declines an invalid host handshake {$bad}") {
+      peer = ScriptedConnection(replies: [{ id: 1, r: $bad }])
+      expect_error(type: Network, contains: 'handshake') {
+        @protocol.with_connection(
+          $peer,
+          'example.kscript',
+          'Test App',
+          fn(_s) => 'unused'
+        )
+      }
+    }
+  }
+
+  for bad in [
+    { id: '2', r: true },
+    { id: 3, r: true },
+    { id: 2 },
+    { id: 2, e: { code: 'missing_message' } }
+  ] {
+    test(name: "rejects a malformed or mismatched response {$bad}") {
+      peer = ScriptedConnection(replies: [$hello, $bad])
+      expect_error(type: Network) {
+        @protocol.with_connection(
+          $peer,
+          'example.kscript',
+          'Test App',
+          fn(s) => @sdk.status($s)
+        )
+      }
+      expect(value: $peer.closed, equals: true)
+    }
+  }
+
+  test(name: "closed events invalidate the session and retain the disconnect code") {
+    peer = ScriptedConnection(replies: [$hello, { ev: 'closed', p: {} }])
+    expect_error(type: Network, as: err) {
+      @protocol.with_connection(
+        $peer,
+        'example.kscript',
+        'Test App',
+        fn(s) => @sdk.status($s)
+      )
+    }
+    expect(value: $err['code'], equals: 'not_connected')
+    expect(value: $peer.closed, equals: true)
+  }
+
+  test(name: "unrecognized operations never reach the transport") {
+    peer = ScriptedConnection(replies: [$hello])
+    expect_error(type: Argument, contains: 'Unknown Isolink operation') {
+      @protocol.with_connection(
+        $peer,
+        'example.kscript',
+        'Test App',
+        fn(s) => $s->request('contacts.list')
+      )
+    }
+    expect(value: $peer.sent->count(), equals: 1)
+  }
+}

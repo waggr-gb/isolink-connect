@@ -1,0 +1,87 @@
+import KScript.Net
+import "src/protocol.kscript" as protocol
+import "src/operations.kscript" as ops
+
+/// Open a desktop session, run action with it, and close when action returns or
+/// throws. The default port is the Isolink desktop port on this computer.
+/// @public
+fn with_session(
+  app_id: string,
+  name: string,
+  action: fn,
+  token: string? = null,
+  port: int = 47231
+) {
+  if $app_id->is_blank() or $name->is_blank() {
+    throw Argument "Isolink needs a non-empty app id and name."
+  }
+  return @with_loopback_json(
+    $port,
+    fn(connection) =>
+    @protocol.with_connection($connection, $app_id, $name, $action, $token),
+    timeout: 2m
+  )
+}
+
+/// Get the host's running and reachable flags.
+/// @public
+fn status(session: any) => @ops.status($session)
+
+/// List the spaces available to this app.
+/// @public
+fn list_spaces(session: any) => @ops.list_spaces($session)
+
+/// Look up an app space by its id.
+/// @public
+fn get_space(session: any, space: string) => @ops.get_space($session, $space)
+
+/// Open the app space with this stable key, creating it on first use.
+/// @public
+fn open_space(session: any, key: string, name: string) =>
+  @ops.open_space($session, $key, $name)
+
+/// List all records in a space, or only those of the given type.
+/// @public
+fn list_records(session: any, space: string, type: string? = null) =>
+  @ops.list_records($session, $space, $type)
+
+/// Fetch a record by id. A missing record returns null.
+/// @public
+fn get_record(session: any, space: string, id: string) =>
+  @ops.get_record($session, $space, $id)
+
+/// Apply field edits to a record and return the updated record.
+/// @public
+fn edit_record(
+  session: any,
+  space: string,
+  type: string,
+  id: string,
+  edits: list
+) =>
+  @ops.edit_record($session, $space, $type, $id, $edits)
+
+/// Delete a record by id.
+/// @public
+fn delete_record(session: any, space: string, id: string) =>
+  @ops.delete_record($session, $space, $id)
+
+/// Build an edit that sets a numbered field to a value.
+/// @public
+fn set_value(field: int(min: 1, max: 65535), value: any) =>
+  @ops.set_value($field, $value)
+
+/// Build an edit that increases a numbered counter.
+/// @public
+fn add_to_counter(field: int(min: 1, max: 65535), by: int(min: 1)) =>
+  @ops.add_to_counter($field, $by)
+
+/// Build an edit that adds items to a numbered set field.
+/// @public
+fn add_to_set(field: int(min: 1, max: 65535), items: list) =>
+  @ops.add_to_set($field, $items)
+
+/// Build an edit that removes items from a numbered set field.
+/// @public
+fn remove_from_set(field: int(min: 1, max: 65535), items: list) =>
+  @ops.remove_from_set($field, $items)

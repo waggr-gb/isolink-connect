@@ -1,0 +1,112 @@
+import KScript.Net
+
+// Isolink Connect v1. A connection serializes each exchange, including
+// allocation of its request ID. All reads of events and the matching reply
+// share that deadline.
+type ConnectSession {
+  me: map
+  token?: string
+  dispatch: fn
+
+  /// Send an operation supported by Connect v1.
+  /// @public
+  fn request(method: string, params: map = {}) => $dispatch($method, $params)
+}
+
+const methods = [
+  'status',
+  'spaces.list',
+  'spaces.get',
+  'spaces.open',
+  'records.list',
+  'records.get',
+  'records.edit',
+  'records.delete'
+]
+
+fn exchange(stream: any, state: map, method: string, params: map) {
+  state.sequence = $state.sequence + 1
+  id = $state.sequence
+  $stream->send({ id: $id, m: $method, p: $params })
+  while true {
+    frame: map = $stream->read()
+    if $frame.ev->type() == 'string' {
+      if $frame.ev === 'closed' {
+        failure = {
+          type: 'Network',
+          message: 'Isolink closed this session.',
+          code: 'not_connected'
+        }
+        throw $failure
+      }
+      continue
+    }
+    if $frame.id !== $id {
+      throw Network "The Isolink reply didn't match the pending request."
+    }
+    if $frame->has('e') {
+      if $frame.e->type() != 'map' or $frame.e.code->type() != 'string' or $frame.e.message->type() != 'string' {
+        throw Network "Isolink sent a malformed error."
+      }
+      return $frame
+    }
+    if not $frame->has('r') {
+      throw Network "The Isolink reply is missing its result."
+    }
+    return $frame
+  }
+}
+
+fn round_trip(connection: any, state: map, method: string, params: map) {
+  reply = $connection->transaction(fn(stream) => @exchange(
+    $stream,
+    $state,
+    $method,
+    $params
+  ))
+  // A valid error belongs to this operation. The next operation can still use
+  // the connection.
+  if $reply->has('e') {
+    failure = {
+      type: 'Network',
+      message: "Isolink refused {$method}: {$reply.e.message}",
+      code: $reply.e.code
+    }
+    throw $failure
+  }
+  return $reply.r
+}
+
+fn request(connection: any, state: map, method: string, params: map) {
+  if not $methods->contains($method) {
+    throw Argument "Unknown Isolink operation '{$method}'."
+  }
+  return @round_trip($connection, $state, $method, $params)
+}
+
+/// Negotiate a v1 desktop session over a transaction-capable connection.
+/// @public
+fn with_connection(
+  connection: any,
+  app_id: string,
+  name: string,
+  action: fn,
+  token: string? = null
+) {
+  params = { protocol: 1, app: { id: $app_id, name: $name } }
+  if $token != null {
+    params.token = $token
+  }
+  state = { sequence: 0 }
+  info = @round_trip($connection, $state, 'hello', $params)
+  if $info->type() != 'map' or $info.protocol !== 1 or $info.mode !== 'host' or $info.me->type() != 'map' or ($info.token != null and $info.token->type() != 'string') {
+    throw Network "Isolink didn't answer with a version 1 host handshake."
+  }
+  dispatch = fn(method, args) => @request($connection, $state, $method, $args)
+  session = ConnectSession(
+    me: $info.me,
+    token: $info.token ?? $token,
+    dispatch: $dispatch
+  )
+  return $action($session)
+}
