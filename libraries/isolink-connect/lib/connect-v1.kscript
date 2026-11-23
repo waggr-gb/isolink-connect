@@ -1,0 +1,14 @@
+const protocol_version = 1
+const handshake_method = 'hello'
+
+const operations = {
+  status: 'status',
+  list_spaces: 'spaces.list',
+  get_space: 'spaces.get',
+  open_space: 'spaces.open',
+  list_records: 'records.list',
+  get_record: 'records.get',
+  edit_record: 'records.edit',
+  delete_record: 'records.delete'
+}
+const methods = $operations->values()

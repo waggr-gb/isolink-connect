@@ -1,0 +1,10 @@
+{
+  "name": "isolink-connect",
+  "library": {
+    "version": "0.2.0",
+    "entry": "client.kscript"
+  },
+  "packages": [
+    "KScript.Net"
+  ]
+}

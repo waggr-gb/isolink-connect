@@ -1,0 +1,9 @@
+type ConnectSession {
+  me: map
+  token?: string
+  dispatch: fn
+
+  /// Send an operation supported by Connect v1.
+  /// @public
+  fn request(method: string, params: map = {}) => $dispatch($method, $params)
+}

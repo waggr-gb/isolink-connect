@@ -1,0 +1,92 @@
+import "../libraries/isolink-connect/client.kscript" as sdk
+import "../libraries/isolink-connect/src/protocol.kscript" as protocol
+import "../libraries/isolink-connect/index.kscript" as legacy
+import "scripted-connection.kscript"
+
+fn update(session: any) {
+  @sdk.list_records($session, 'home')
+  @sdk.list_records($session, 'home', type: 'note')
+  edits = [
+    @sdk.set_value(field: 1, value: 'Coffee'),
+    @sdk.add_to_counter(2, by: 3),
+    @sdk.add_to_set(3, items: ['hot']),
+    @sdk.remove_from_set(3, ['empty'])
+  ]
+  return @sdk.edit_record(
+    $session,
+    'home',
+    type: 'note',
+    id: 'shopping',
+    edits: $edits
+  )
+}
+
+describe(name: "Records") {
+  test(name: "builds numbered edit operations and omits an absent record filter") {
+    peer = ScriptedConnection(replies: [{
+      id: 1,
+      r: { protocol: 1, mode: 'host', me: {} }
+    },
+      { id: 2, r: [] }, { id: 3, r: [] }, { id: 4, r: { id: 'shopping' } }])
+    result = @protocol.with_connection(
+      $peer,
+      'example.kscript',
+      'Tests',
+      @update
+    )
+    expect(value: $result.id, equals: 'shopping')
+    expect(value: $peer.sent[1].p, equals: { space: 'home' })
+    expect(value: $peer.sent[2].p, equals: { space: 'home', type: 'note' })
+    expect(value: $peer.sent[3], equals: { id: 4, m: 'records.edit', p: { space: 'home', type: 'note', id: 'shopping', edits: [
+      { op: 'setValue', field: 1, value: 'Coffee' },
+      { op: 'addToCounter', field: 2, by: 3 },
+      { op: 'addToSet', field: 3, items: ['hot'] },
+      { op: 'removeFromSet', field: 3, items: ['empty'] }
+    ] } })
+  }
+
+  test(name: "both entries accept existing named edit arguments") {
+    expect(
+      value: @legacy.set_value(value: 'Coffee', field: 1),
+      equals: @sdk.set_value(1, 'Coffee')
+    )
+    expect(
+      value: @legacy.add_to_counter(by: 3, field: 2),
+      equals: @sdk.add_to_counter(2, 3)
+    )
+  }
+}
+
+describe(name: "Connect operations") {
+  test(name: "each SDK wrapper sends its Connect v1 method") {
+    methods = [
+      'status',
+      'spaces.list',
+      'spaces.get',
+      'spaces.open',
+      'records.list',
+      'records.get',
+      'records.edit',
+      'records.delete'
+    ]
+    replies = [{ id: 1, r: { protocol: 1, mode: 'host', me: {} } }]
+    for method in $methods {
+      replies = $replies->push({ id: $replies->count() + 1, r: $method })
+    }
+    peer = ScriptedConnection(replies: $replies)
+    @protocol.with_connection($peer, 'example.kscript', 'Tests', fn(s) => [
+      @sdk.status($s),
+      @sdk.list_spaces($s),
+      @sdk.get_space($s, 'home'),
+      @sdk.open_space($s, 'home', 'Home'),
+      @sdk.list_records($s, 'home'),
+      @sdk.get_record($s, 'home', 'first'),
+      @sdk.edit_record($s, 'home', 'note', 'first', []),
+      @sdk.delete_record($s, 'home', 'first')
+    ])
+    expect(
+      value: $peer.sent->skip(1)->map(fn(frame) => $frame.m),
+      equals: $methods
+    )
+  }
+}

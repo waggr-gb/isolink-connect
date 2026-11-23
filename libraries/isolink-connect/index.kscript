@@ -1,4 +1,5 @@
 import KScript.Net
+import "src/operations.kscript" as ops
 
 /// Run action with a desktop Isolink session. The session closes when action
 /// returns or throws.
@@ -8,36 +9,30 @@ fn with_session(app_id: string, name: string, action: fn, token: string? = null)
 
 /// Get the host's running and reachable flags.
 /// @public
-fn status(session: any) => $session->request('status')
+fn status(session: any) => @ops.status($session)
 
 /// List the spaces available to this app.
 /// @public
-fn list_spaces(session: any) => $session->request('spaces.list')
+fn list_spaces(session: any) => @ops.list_spaces($session)
 
 /// Look up an app space by its id.
 /// @public
-fn get_space(session: any, space: string) =>
-  $session->request('spaces.get', { space: $space })
+fn get_space(session: any, space: string) => @ops.get_space($session, $space)
 
 /// Open the app space with this stable key, creating it on first use.
 /// @public
 fn open_space(session: any, key: string, name: string) =>
-  $session->request('spaces.open', { key: $key, name: $name })
+  @ops.open_space($session, $key, $name)
 
 /// List all records in a space, or only those of the given type.
 /// @public
-fn list_records(session: any, space: string, type: string? = null) {
-  params = { space: $space }
-  if $type != null {
-    params.type = $type
-  }
-  return $session->request('records.list', $params)
-}
+fn list_records(session: any, space: string, type: string? = null) =>
+  @ops.list_records($session, $space, $type)
 
 /// Fetch a record by id. A missing record returns null.
 /// @public
 fn get_record(session: any, space: string, id: string) =>
-  $session->request('records.get', { space: $space, id: $id })
+  @ops.get_record($session, $space, $id)
 
 /// Apply field edits to a record and return the updated record.
 /// @public
@@ -48,44 +43,29 @@ fn edit_record(
   id: string,
   edits: list
 ) =>
-  $session->request(
-    'records.edit',
-    { space: $space, type: $type, id: $id, edits: $edits }
-  )
+  @ops.edit_record($session, $space, $type, $id, $edits)
 
 /// Delete a record by id.
 /// @public
 fn delete_record(session: any, space: string, id: string) =>
-  $session->request('records.delete', { space: $space, id: $id })
+  @ops.delete_record($session, $space, $id)
 
 /// Build an edit that sets a numbered field to a value.
 /// @public
-fn set_value(field: int(min: 1, max: 65535), value: any) => {
-  op: 'setValue',
-  field: $field,
-  value: $value
-}
+fn set_value(field: int(min: 1, max: 65535), value: any) =>
+  @ops.set_value($field, $value)
 
 /// Build an edit that increases a numbered counter.
 /// @public
-fn add_to_counter(field: int(min: 1, max: 65535), by: int(min: 1)) => {
-  op: 'addToCounter',
-  field: $field,
-  by: $by
-}
+fn add_to_counter(field: int(min: 1, max: 65535), by: int(min: 1)) =>
+  @ops.add_to_counter($field, $by)
 
 /// Build an edit that adds items to a numbered set field.
 /// @public
-fn add_to_set(field: int(min: 1, max: 65535), items: list) => {
-  op: 'addToSet',
-  field: $field,
-  items: $items
-}
+fn add_to_set(field: int(min: 1, max: 65535), items: list) =>
+  @ops.add_to_set($field, $items)
 
 /// Build an edit that removes items from a numbered set field.
 /// @public
-fn remove_from_set(field: int(min: 1, max: 65535), items: list) => {
-  op: 'removeFromSet',
-  field: $field,
-  items: $items
-}
+fn remove_from_set(field: int(min: 1, max: 65535), items: list) =>
+  @ops.remove_from_set($field, $items)

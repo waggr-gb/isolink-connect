@@ -1,0 +1,36 @@
+// A deterministic transport. A failed transaction invalidates its connection,
+// exactly as the scoped JSON transport does after a failed or incomplete
+// exchange.
+type ScriptedConnection {
+  replies: list
+  sent: list = []
+  reads: int = 0
+  closed: bool = false
+
+  /// @public
+  fn transaction(action: fn) {
+    if $closed {
+      throw Network "The test connection is closed."
+    }
+    try {
+      return $action($this)
+    } catch err {
+      this.closed = true
+      throw $err
+    }
+  }
+
+  /// @public
+  fn send(frame: map) {
+    this.sent = $sent->push($frame)
+  }
+
+  /// @public
+  fn read() {
+    if $reads >= $replies->count() {
+      throw Network "No scripted reply remains."
+    }
+    this.reads = $reads + 1
+    return $replies[$reads]
+  }
+}

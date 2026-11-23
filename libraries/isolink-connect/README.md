@@ -7,20 +7,15 @@ kscript repo add waggr-gb/isolink-connect
 kscript lib add waggr-gb/isolink-connect@isolink-connect
 ```
 
-From a script next to the project's `lib` folder, import the installed entry file and pass a function to `with_session`. Use a stable app id so later runs can reopen the same space.
+The [package manifest](kscript.json) declares SDK version 0.2.0 and its entry. Use the entry path printed by the installer. SDK 0.2.0 uses `client.kscript` on KScript builds that provide `KScript.Net`'s `@with_loopback_json` command. It implements the Connect v1 handshake and request protocol in KScript. On KScript v0.14.0, import `lib/isolink-connect/index.kscript` for the same operations using that release's native Connect transport.
+
+From a script next to the project's `lib` folder, pass a function to `with_session`. Use a stable app id so later runs can reopen the same space.
 
 ```kscript
-import "lib/isolink-connect/index.kscript" as isolink
+import "lib/isolink-connect/client.kscript" as isolink
 
-fn save_note(session: any) {
-  space = @isolink.open_space($session, 'notes', 'My notes')
-  title = @isolink.set_value(1, 'Buy coffee')
-  note = @isolink.edit_record($session, $space.id, 'note', 'shopping', [$title])
-  return $note.id
-}
-
-id = @isolink.with_session('com.example.notes', 'My Notes', @save_note)
-echo $id
+host = @isolink.with_session('com.example.notes', 'My Notes', fn(session) => @isolink.status($session))
+echo $host.running
 ```
 
 `with_session` returns the callback's result and closes the connection when the callback finishes, including when it throws. During the callback, `$session.me` identifies the current person. If Isolink issues a reconnect token, store `$session.token` in your app's private storage and pass it as `token:` on the next call. Isolink controls consent and revocation.
@@ -38,3 +33,10 @@ echo $id
 Edits use integer field ids from 1 to 65535. Build them with `set_value(field, value)`, `add_to_counter(field, by)`, `add_to_set(field, items)` or `remove_from_set(field, items)`. Counter increments are positive integers. Sets take a list of items.
 
 The library uses the desktop Connect v1 protocol on loopback and requests the standard app data grant. The wire format and consent model are described in the [Isolink Connect documentation](https://isolink.app/docs/connect.html#protocol).
+
+
+## Protocol behavior
+
+The source client opens the desktop endpoint on loopback port 47231, sends a v1 `hello` request with the app identity, and checks the host mode, protocol version and identity. It uses a renewed token when the host supplies one. Pass `port:` to `with_session` to connect to an Isolink host on another local port.
+
+Each operation has a request ID and waits for its matching reply. Unrelated events are ignored while waiting. A `closed` event raises a `Network` error with code `not_connected`. A refusal from the host preserves its error code on `$err.code`. A refused operation can be caught inside the callback so the next operation can use the same connection. Malformed or mismatched replies invalidate the connection.
