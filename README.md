@@ -15,7 +15,9 @@ The [repository project manifest](kscript.json) declares SDK version 0.3.0 and i
 
 The [KScript SDK guide](libraries/isolink-connect/README.md) covers sessions, space and record operations, field edits, and upgrading the import. The [source client](libraries/isolink-connect/client.kscript) runs the [Connect v1 protocol](libraries/isolink-connect/src/protocol.kscript) over the scoped JSON transport in `KScript.Net`.
 
-From a checkout, run the protocol tests with `kscript test tests`. They use a scripted peer and run without the Isolink desktop app. With Isolink open and a KScript build that supports `@with_loopback_json`, run the [notes example](examples/notes.kscript):
+From a checkout, run the scripted protocol suite with `kscript test tests`. Run `python3 tests/wire.py` to exercise the SDK against a real loopback TCP peer, including token renewal, record edits and connection closure after a callback error. Both suites run without the desktop app. The SDK's CI also installs the exact revision under test, restores it in a fresh consumer, and runs the wire tests against the restored package.
+
+With Isolink open and a compatible KScript build, run the [notes example](examples/notes.kscript):
 
 ```sh
 kscript examples/notes.kscript
