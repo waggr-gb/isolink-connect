@@ -1,3 +1,4 @@
+import "types/connect-session.kscript"
 import KScript.Net
 import "src/protocol.kscript" as protocol
 import "src/operations.kscript" as ops
@@ -25,35 +26,36 @@ fn with_session(
 
 /// Get the host's running and reachable flags.
 /// @public
-fn status(session: any) => @ops.status($session)
+fn status(session: ConnectSession) => @ops.status($session)
 
 /// List the spaces available to this app.
 /// @public
-fn list_spaces(session: any) => @ops.list_spaces($session)
+fn list_spaces(session: ConnectSession) => @ops.list_spaces($session)
 
 /// Look up an app space by its id.
 /// @public
-fn get_space(session: any, space: string) => @ops.get_space($session, $space)
+fn get_space(session: ConnectSession, space: string) =>
+  @ops.get_space($session, $space)
 
 /// Open the app space with this stable key, creating it on first use.
 /// @public
-fn open_space(session: any, key: string, name: string) =>
+fn open_space(session: ConnectSession, key: string, name: string) =>
   @ops.open_space($session, $key, $name)
 
 /// List all records in a space, or only those of the given type.
 /// @public
-fn list_records(session: any, space: string, type: string? = null) =>
+fn list_records(session: ConnectSession, space: string, type: string? = null) =>
   @ops.list_records($session, $space, $type)
 
 /// Fetch a record by id. A missing record returns null.
 /// @public
-fn get_record(session: any, space: string, id: string) =>
+fn get_record(session: ConnectSession, space: string, id: string) =>
   @ops.get_record($session, $space, $id)
 
 /// Apply field edits to a record and return the updated record.
 /// @public
 fn edit_record(
-  session: any,
+  session: ConnectSession,
   space: string,
   type: string,
   id: string,
@@ -63,7 +65,7 @@ fn edit_record(
 
 /// Delete a record by id.
 /// @public
-fn delete_record(session: any, space: string, id: string) =>
+fn delete_record(session: ConnectSession, space: string, id: string) =>
   @ops.delete_record($session, $space, $id)
 
 /// Build an edit that sets a numbered field to a value.

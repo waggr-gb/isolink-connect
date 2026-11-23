@@ -1,23 +1,26 @@
 import "../libraries/isolink-connect/src/protocol.kscript" as protocol
 import "../libraries/isolink-connect/client.kscript" as sdk
-import KScript.Net
+import "../libraries/isolink-connect/types/connect-session.kscript"
 import "scripted-connection.kscript"
 
 const hello = { id: 1, r: { protocol: 1, mode: 'host', me: { name: 'Joan' } } }
 
-fn read_status(session: any) {
+fn read_status(session: ConnectSession) {
   expect(value: $session.me.name, equals: 'Joan')
   expect(value: $session.token, equals: 'saved')
   return @sdk.status($session)
 }
 
-fn retry_after_host_error(session: any) {
+fn retry_after_host_error(session: ConnectSession) {
   expect_error(type: Network, as: err) {
     @sdk.get_record($session, 'space', 'old')
   }
   expect(value: $err['code'], equals: 'missing_record')
   return @sdk.open_space($session, 'notes', 'Notes')
 }
+
+fn request_unsupported(session: ConnectSession) =>
+  $session->request('contacts.list')
 
 describe(name: "Connect v1") {
   test(name: "hello, events and a correlated reply share one stream") {
@@ -161,7 +164,7 @@ describe(name: "Connect v1") {
         $peer,
         'example.kscript',
         'Test App',
-        fn(s) => $s->request('contacts.list')
+        @request_unsupported
       )
     }
     expect(value: $peer.sent->count(), equals: 1)
