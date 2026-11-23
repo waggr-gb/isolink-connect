@@ -1,0 +1,61 @@
+name: KScript SDK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out SDK revision
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          path: sdk
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      # This revision includes manifest-based installation, the scoped JSON-lines
+      # transport, and the conditional throw syntax used in the v0.3 SDK.
+      - name: Check out compatible KScript runtime
+        uses: actions/checkout@v5
+        with:
+          repository: kylepantall/kscript
+          ref: f55792357a2fdce537bcdf557d400d6270a27066
+          path: runtime
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - name: Build KScript
+        run: |
+          dotnet build runtime/KScriptApp/KScriptApp.csproj --configuration Release
+          echo "KSCRIPT_DLL=$GITHUB_WORKSPACE/runtime/KScriptApp/bin/Release/net8.0/KScript.dll" >> "$GITHUB_ENV"
+
+      - name: Check SDK source and run scripted protocol tests
+        working-directory: sdk
+        run: |
+          dotnet "$KSCRIPT_DLL" check libraries tests examples --warnings-as-errors
+          dotnet "$KSCRIPT_DLL" fmt --check libraries tests examples
+          dotnet "$KSCRIPT_DLL" test tests
+
+      - name: Install this revision, restore a clean consumer, and test the wire protocol
+        env:
+          SDK_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          SDK_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/consumer" "$RUNNER_TEMP/restored"
+          cd "$RUNNER_TEMP/consumer"
+          echo '{}' > kscript.json
+          dotnet "$KSCRIPT_DLL" lib add "https://github.com/$SDK_REPO/tree/$SDK_REVISION/libraries/isolink-connect"
+          python3 -c 'import json, os; assert json.load(open("kscript.json"))["libraries"]["isolink-connect"]["commit"] == os.environ["SDK_REVISION"]'
+          cp kscript.json "$RUNNER_TEMP/restored/"
+          cd "$RUNNER_TEMP/restored"
+          dotnet "$KSCRIPT_DLL" lib restore
+          cmp "$GITHUB_WORKSPACE/sdk/libraries/isolink-connect/client.kscript" lib/isolink-connect/client.kscript
+          python3 "$GITHUB_WORKSPACE/sdk/tests/wire.py" --kscript "$KSCRIPT_DLL" --library lib/isolink-connect
