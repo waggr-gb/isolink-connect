@@ -1,29 +1,10 @@
 import KScript.Net
+import protocol_version, handshake_method, methods from "../lib/connect-v1.kscript"
+import "../types/connect-session.kscript"
 
 // Isolink Connect v1. A connection serializes each exchange, including
 // allocation of its request ID. All reads of events and the matching reply
 // share that deadline.
-type ConnectSession {
-  me: map
-  token?: string
-  dispatch: fn
-
-  /// Send an operation supported by Connect v1.
-  /// @public
-  fn request(method: string, params: map = {}) => $dispatch($method, $params)
-}
-
-const methods = [
-  'status',
-  'spaces.list',
-  'spaces.get',
-  'spaces.open',
-  'records.list',
-  'records.get',
-  'records.edit',
-  'records.delete'
-]
-
 fn exchange(stream: any, state: map, method: string, params: map) {
   state.sequence = $state.sequence + 1
   id = $state.sequence
@@ -85,6 +66,8 @@ fn request(connection: any, state: map, method: string, params: map) {
 }
 
 /// Negotiate a v1 desktop session over a transaction-capable connection.
+/// The connection's transaction(action) calls action with a stream that
+/// provides send(frame) and read().
 /// @public
 fn with_connection(
   connection: any,
@@ -93,13 +76,13 @@ fn with_connection(
   action: fn,
   token: string? = null
 ) {
-  params = { protocol: 1, app: { id: $app_id, name: $name } }
+  params = { protocol: $protocol_version, app: { id: $app_id, name: $name } }
   if $token != null {
     params.token = $token
   }
   state = { sequence: 0 }
-  info = @round_trip($connection, $state, 'hello', $params)
-  if $info->type() != 'map' or $info.protocol !== 1 or $info.mode !== 'host' or $info.me->type() != 'map' or ($info.token != null and $info.token->type() != 'string') {
+  info = @round_trip($connection, $state, $handshake_method, $params)
+  if $info->type() != 'map' or $info.protocol !== $protocol_version or $info.mode !== 'host' or $info.me->type() != 'map' or ($info.token != null and $info.token->type() != 'string') {
     throw Network "Isolink didn't answer with a version 1 host handshake."
   }
   dispatch = fn(method, args) => @request($connection, $state, $method, $args)

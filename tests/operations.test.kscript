@@ -56,3 +56,37 @@ describe(name: "Records") {
     )
   }
 }
+
+describe(name: "Connect operations") {
+  test(name: "each SDK wrapper sends its Connect v1 method") {
+    methods = [
+      'status',
+      'spaces.list',
+      'spaces.get',
+      'spaces.open',
+      'records.list',
+      'records.get',
+      'records.edit',
+      'records.delete'
+    ]
+    replies = [{ id: 1, r: { protocol: 1, mode: 'host', me: {} } }]
+    for method in $methods {
+      replies = $replies->push({ id: $replies->count() + 1, r: $method })
+    }
+    peer = ScriptedConnection(replies: $replies)
+    @protocol.with_connection($peer, 'example.kscript', 'Tests', fn(s) => [
+      @sdk.status($s),
+      @sdk.list_spaces($s),
+      @sdk.get_space($s, 'home'),
+      @sdk.open_space($s, 'home', 'Home'),
+      @sdk.list_records($s, 'home'),
+      @sdk.get_record($s, 'home', 'first'),
+      @sdk.edit_record($s, 'home', 'note', 'first', []),
+      @sdk.delete_record($s, 'home', 'first')
+    ])
+    expect(
+      value: $peer.sent->skip(1)->map(fn(frame) => $frame.m),
+      equals: $methods
+    )
+  }
+}
