@@ -7,18 +7,18 @@ kscript repo add waggr-gb/isolink-connect
 kscript lib add waggr-gb/isolink-connect@isolink-connect
 ```
 
-The [package manifest](kscript.json) declares SDK version 0.2.0 and its entry. Use the entry path printed by the installer. SDK 0.2.0 uses `client.kscript` on KScript builds that provide `KScript.Net`'s `@with_loopback_json` command. It implements the Connect v1 handshake and request protocol in KScript. On KScript v0.14.0, import `lib/isolink-connect/index.kscript` for the same operations using that release's native Connect transport.
+The [package manifest](kscript.json) declares SDK version 0.3.0 and its entry. Use a KScript build with manifest-based installation and the generic `@with_loopback_json` command in `KScript.Net`. The SDK implements the Connect v1 handshake and request protocol in KScript. When upgrading an application that imports `lib/isolink-connect/index.kscript`, switch that import to `lib/isolink-connect/client.kscript` and keep the alias used by your application.
 
 From a script next to the project's `lib` folder, pass a function to `with_session`. Use a stable app id so later runs can reopen the same space.
 
 ```kscript
 import "lib/isolink-connect/client.kscript" as isolink
 
-host = @isolink.with_session('com.example.notes', 'My Notes', fn(session) => @isolink.status($session))
-echo $host.running
+fn host_status() =>
+  @isolink.with_session('com.example.notes', 'My Notes', fn(session) => @isolink.status($session))
 ```
 
-`with_session` returns the callback's result and closes the connection when the callback finishes, including when it throws. During the callback, `$session.me` identifies the current person. If Isolink issues a reconnect token, store `$session.token` in your app's private storage and pass it as `token:` on the next call. Isolink controls consent and revocation.
+`@host_status()` returns a map with the host's `running` flag. Catch connection failures where your app can report them. `with_session` returns the callback's result and closes the connection when the callback finishes, including when it throws. During the callback, `$session.me` identifies the current person. If Isolink issues a reconnect token, store `$session.token` in your app's private storage and pass it as `token:` on the next call. Isolink controls consent and revocation.
 
 | Function | Result |
 | --- | --- |

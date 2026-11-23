@@ -1,6 +1,5 @@
 import "../libraries/isolink-connect/client.kscript" as sdk
 import "../libraries/isolink-connect/src/protocol.kscript" as protocol
-import "../libraries/isolink-connect/index.kscript" as legacy
 import "scripted-connection.kscript"
 
 fn update(session: any) {
@@ -45,14 +44,14 @@ describe(name: "Records") {
     ] } })
   }
 
-  test(name: "both entries accept existing named edit arguments") {
+  test(name: "named edit arguments make Connect v1 field operations") {
     expect(
-      value: @legacy.set_value(value: 'Coffee', field: 1),
-      equals: @sdk.set_value(1, 'Coffee')
+      value: @sdk.set_value(value: 'Coffee', field: 1),
+      equals: { op: 'setValue', field: 1, value: 'Coffee' }
     )
     expect(
-      value: @legacy.add_to_counter(by: 3, field: 2),
-      equals: @sdk.add_to_counter(2, 3)
+      value: @sdk.add_to_counter(by: 3, field: 2),
+      equals: { op: 'addToCounter', field: 2, by: 3 }
     )
   }
 }
