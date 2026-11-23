@@ -11,7 +11,7 @@ kscript repo add waggr-gb/isolink-connect
 kscript lib add waggr-gb/isolink-connect@isolink-connect
 ```
 
-The [repository project manifest](kscript.json) declares SDK version 0.3.0 and its entry when working from a checkout. The [library manifest](libraries/isolink-connect/kscript.json) declares the entry relative to the installed folder.
+The repository project manifest configures the tests and points to the SDK folder. On KScript builds that support this reference, a direct install with `kscript lib add waggr-gb/isolink-connect` installs the same folder as the named command above. The SDK's version, entry point and runtime packages are declared in its own manifest. [Repository project manifest](kscript.json) · [SDK manifest](libraries/isolink-connect/kscript.json)
 
 The [KScript SDK guide](libraries/isolink-connect/README.md) covers sessions, space and record operations, field edits, and upgrading the import. The [source client](libraries/isolink-connect/client.kscript) runs the [Connect v1 protocol](libraries/isolink-connect/src/protocol.kscript) over the scoped JSON transport in `KScript.Net`.
 
