@@ -47,13 +47,10 @@ fn round_trip(connection: any, state: map, method: string, params: map) {
   ))
   // A valid error belongs to this operation. The next operation can still use
   // the connection.
-  if $reply->has('e') {
-    failure = {
-      type: 'Network',
-      message: "Isolink refused {$method}: {$reply.e.message}",
-      code: $reply.e.code
-    }
-    throw $failure
+  throw if $reply->has('e') {
+    type: 'Network'
+    message: "Isolink refused {$method}: {$reply.e.message}"
+    code: $reply.e.code
   }
   return $reply.r
 }
