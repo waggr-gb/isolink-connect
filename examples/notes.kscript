@@ -2,8 +2,9 @@
 // examples/notes.kscript. For an installed library, import the entry from its
 // own kscript.json. Consent is requested on the first run.
 import "../libraries/isolink-connect/client.kscript" as connect
+import "../libraries/isolink-connect/types/connect-session.kscript"
 
-fn save_note(session: any) {
+fn save_note(session: ConnectSession) {
   space = @connect.open_space($session, 'notes', 'My notes')
   edit = @connect.set_value(1, 'Buy coffee')
   note = @connect.edit_record($session, $space.id, 'note', 'shopping', [$edit])

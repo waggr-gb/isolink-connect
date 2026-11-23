@@ -1,8 +1,9 @@
+import "../libraries/isolink-connect/types/connect-session.kscript"
 import "../libraries/isolink-connect/client.kscript" as sdk
 import "../libraries/isolink-connect/src/protocol.kscript" as protocol
 import "scripted-connection.kscript"
 
-fn update(session: any) {
+fn update(session: ConnectSession) {
   @sdk.list_records($session, 'home')
   @sdk.list_records($session, 'home', type: 'note')
   edits = [
