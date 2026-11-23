@@ -7,7 +7,9 @@ kscript repo add waggr-gb/isolink-connect
 kscript lib add waggr-gb/isolink-connect@isolink-connect
 ```
 
-The [package manifest](kscript.json) declares SDK version 0.3.0 and its entry. Use a KScript build with manifest-based installation and the generic `@with_loopback_json` command in `KScript.Net`. The SDK implements the Connect v1 handshake and request protocol in KScript. When upgrading an application that imports `lib/isolink-connect/index.kscript`, switch that import to `lib/isolink-connect/client.kscript` and keep the alias used by your application.
+The package manifest declares the SDK version, entry point and runtime packages. [Package manifest](kscript.json)
+
+Use a KScript build with manifest-based installation and the generic `@with_loopback_json` command in `KScript.Net`. The SDK implements the Connect v1 handshake and request protocol in KScript. When upgrading an application that imports `lib/isolink-connect/index.kscript`, switch that import to `lib/isolink-connect/client.kscript` and keep the alias used by your application.
 
 From a script next to the project's `lib` folder, pass a function to `with_session`. Use a stable app id so later runs can reopen the same space.
 

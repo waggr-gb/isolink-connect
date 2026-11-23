@@ -1,12 +1,6 @@
 {
   "name": "isolink-connect",
-  "library": {
-    "version": "0.3.0",
-    "entry": "libraries/isolink-connect/client.kscript"
-  },
-  "packages": [
-    "KScript.Net"
-  ],
+  "library": "libraries/isolink-connect",
   "test": {
     "include": [
       "tests/**/*.test.kscript"
